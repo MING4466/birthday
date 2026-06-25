@@ -1,0 +1,836 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>殷先生亲启</title>
+  <style>
+    :root {
+      --container-max: 420px;
+      --screen-min-height: 500px;
+      --puzzle-max: 300px;
+      --font-base: clamp(14px, 3.5vw, 18px);
+      --font-h2: clamp(22px, 5.5vw, 30px);
+      --font-btn: clamp(13px, 3.2vw, 16px);
+      --spacing: clamp(8px, 2vw, 16px);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0f1e;
+      font-family: 'Courier New', 'Press Start 2P', 'VT323', monospace;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: clamp(8px, 2vw, 20px);
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow-y: auto;
+    }
+
+    .game-container {
+      width: 100%;
+      max-width: var(--container-max);
+      background: #0b1a2f;
+      border: 3px solid #4a90e2;
+      box-shadow: 0 0 0 3px #1e3b5a, 0 0 20px rgba(74,144,226,0.6);
+      border-radius: 16px;
+      padding: var(--spacing);
+      position: relative;
+      overflow: visible;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: radial-gradient(circle at 20% 20%, #153356, #020813);
+      min-height: auto;
+    }
+
+    .pixel-border {
+      position: absolute;
+      top: -2px; left: -2px; right: -2px; bottom: -2px;
+      border: 2px dashed #6bb5ff;
+      border-radius: 18px;
+      pointer-events: none;
+      opacity: 0.5;
+      z-index: 0;
+    }
+
+    .screen {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: var(--screen-min-height);
+      background: #051024;
+      border: 2px solid #2a6eb0;
+      border-radius: 12px;
+      padding: var(--spacing);
+      margin: 8px 0;
+      box-shadow: inset 0 0 15px #001122;
+      color: #d4f0ff;
+      text-shadow: 1px 1px 0 #001122;
+      position: relative;
+      z-index: 1;
+    }
+
+    h2 {
+      font-size: var(--font-h2);
+      margin-bottom: clamp(12px, 3vw, 20px);
+      color: #f5e56c;
+      text-shadow: 2px 2px 0 #1a3f5c;
+      letter-spacing: 1px;
+      text-align: center;
+      word-break: break-word;
+    }
+
+    .btn {
+      background: #1f4b7a;
+      border: 2px solid #7bb3ff;
+      color: white;
+      font-family: inherit;
+      font-size: var(--font-btn);
+      padding: clamp(8px, 2vw, 14px) clamp(16px, 4vw, 28px);
+      margin: clamp(6px, 1.5vw, 12px) clamp(4px, 1vw, 8px);
+      border-radius: 30px;
+      background: linear-gradient(180deg, #2d5f96 0%, #0a2240 100%);
+      box-shadow: 0 3px 0 #061a2b, 0 4px 10px rgba(0,0,0,0.5);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: 0.07s linear;
+      touch-action: manipulation;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #061a2b, 0 2px 6px rgba(0,0,0,0.5); }
+    .option-btn { display: block; width: 100%; background: #1f3b5c; border-color: #5f9ef0; margin: clamp(6px, 1.5vw, 12px) 0; white-space: normal; }
+    .hidden { display: none !important; }
+
+    /* 拼图区域 */
+    .puzzle-drag-area {
+      position: relative;
+      width: min(70vw, var(--puzzle-max));
+      height: min(70vw, var(--puzzle-max));
+      margin: clamp(10px, 2.5vw, 20px) auto;
+      background: #0d2940;
+      border-radius: 8px;
+      border: 2px solid #2a6eb0;
+      overflow: hidden;
+    }
+    .puzzle-tile {
+      position: absolute;
+      width: calc(100% / 3);
+      height: calc(100% / 3);
+      border: 1px solid #6caef0;
+      cursor: grab;
+      background-size: cover;
+      background-position: center;
+      z-index: 1;
+      touch-action: none;
+    }
+    .puzzle-tile:active { cursor: grabbing; z-index: 10; }
+    .puzzle-tile.dragging {
+      opacity: 0.85; z-index: 20;
+      box-shadow: 0 0 15px #ffd966;
+      border-color: #ffd966;
+    }
+    .puzzle-tile.empty {
+      opacity: 0.3; border-style: dashed;
+      background: #0b1b30 !important;
+      background-image: none !important;
+      cursor: default; z-index: 0;
+    }
+    .puzzle-tile.correct { border-color: #4cff4c; box-shadow: 0 0 8px #4cff4c; }
+
+    /* 老虎机 */
+    .slot-machine {
+      display: flex;
+      justify-content: center;
+      gap: clamp(10px, 3vw, 20px);
+      margin: clamp(10px, 2.5vw, 20px) 0;
+    }
+    .slot {
+      width: clamp(50px, 16vw, 75px);
+      height: clamp(65px, 20vw, 95px);
+      background: #132b44;
+      border: 2px solid #ffd966;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(24px, 7vw, 40px);
+      background: #1a3350;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    }
+
+    /* 信封 - 彻底消除重影 */
+    .envelope-letter {
+      background: #fbf5e3;
+      color: #3a2a1a;
+      padding: clamp(14px, 3.5vw, 24px);
+      border-radius: 8px;
+      font-family: 'KaiTi', '楷体', 'STKaiti', '华文楷体', cursive, serif;
+      font-size: clamp(13px, 3.2vw, 16px);
+      line-height: 2;
+      border: 3px double #b89b6b;
+      width: 100%;
+      text-align: left;
+      white-space: pre-wrap;
+      word-break: break-word;
+      letter-spacing: 0.5px;
+      text-shadow: none !important;
+      font-weight: normal !important;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .envelope-letter .signature {
+      text-align: right;
+      margin-top: clamp(8px, 2vw, 16px);
+      display: block;
+      text-shadow: none !important;
+      font-weight: normal !important;
+    }
+
+    /* 庆祝画面 */
+    .final-celebration {
+      width: 100%;
+      background: #03070e;
+      border-radius: 12px;
+      padding: clamp(8px, 2vw, 12px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+    canvas {
+      width: 100%;
+      height: auto;
+      max-width: 100%;
+      border-radius: 8px;
+      display: block;
+    }
+
+    /* 封面 */
+    .cover-screen {
+      background: linear-gradient(135deg, #0a1424 0%, #122a44 100%);
+      text-align: center;
+    }
+    .cover-pixel-art {
+      font-size: clamp(40px, 10vw, 55px);
+      margin: clamp(10px, 2.5vw, 20px) 0;
+      filter: drop-shadow(0 0 12px #ffd966);
+      animation: float 2s ease-in-out infinite;
+    }
+    @keyframes float {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+      100% { transform: translateY(0); }
+    }
+    .cover-title {
+      font-size: clamp(26px, 7vw, 40px);
+      color: #f7e98e;
+      text-shadow: 3px 3px 0 #1a3f5c;
+      margin: clamp(10px, 2.5vw, 20px) 0;
+    }
+    .cover-sub {
+      color: #b3e0ff;
+      font-size: clamp(14px, 3.5vw, 18px);
+      margin: clamp(8px, 2vw, 15px) 0 clamp(20px, 5vw, 30px);
+      line-height: 1.6;
+    }
+
+    /* 导航按钮 */
+    #navButtons {
+      display: flex;
+      gap: clamp(6px, 2vw, 12px);
+      margin-top: clamp(6px, 1.5vw, 12px);
+      width: 100%;
+      justify-content: center;
+      align-items: center;
+    }
+    #pageIndicator {
+      color: #b3e0ff;
+      align-self: center;
+      font-size: clamp(14px, 3.5vw, 18px);
+      min-width: 40px;
+      text-align: center;
+    }
+
+    #finalNavButtons {
+      display: flex;
+      gap: clamp(6px, 2vw, 12px);
+      margin-top: clamp(8px, 2vw, 16px);
+      width: 100%;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .instruction {
+      color: #b0d5ff;
+      font-size: clamp(12px, 3vw, 15px);
+      margin: 4px 0 8px;
+      text-align: center;
+    }
+    .feedback-text {
+      font-size: clamp(12px, 3vw, 15px);
+      margin-top: clamp(6px, 1.5vw, 10px);
+      text-align: center;
+    }
+
+    textarea, input {
+      background: #0a1829;
+      border: 2px solid #3f74b0;
+      color: #f0f9ff;
+      padding: clamp(8px, 2vw, 12px);
+      font-family: inherit;
+      width: 100%;
+      border-radius: 8px;
+      margin: clamp(8px, 2vw, 12px) 0;
+      font-size: clamp(14px, 3.5vw, 16px);
+      resize: vertical;
+    }
+
+    @media (min-width: 768px) {
+      body { padding: 20px; background: #060d18; }
+      .game-container { border-width: 4px; }
+      .screen { min-height: 480px; padding: 24px; }
+      .btn:hover { background: linear-gradient(180deg, #3a6fa8 0%, #123050 100%); border-color: #9cc8ff; }
+    }
+
+    @media (max-width: 360px) {
+      .screen { min-height: 420px; padding: 10px; }
+      .btn { padding: 8px 14px; }
+    }
+  </style>
+</head>
+<body>
+<div class="game-container" id="gameContainer">
+  <div class="pixel-border"></div>
+
+  <!-- 封面页 -->
+  <div id="screenCover" class="screen cover-screen">
+    <div class="cover-pixel-art">🎂✨</div>
+    <div class="cover-title">殷先生</div>
+    <div class="cover-sub">准备好了么？<br>生日惊喜即将送达</div>
+    <button class="btn" id="enterBtn" style="font-size: clamp(16px, 4vw, 22px); padding: clamp(12px, 3vw, 16px) clamp(24px, 6vw, 36px);">✨ 点击进入 ✨</button>
+  </div>
+
+  <!-- 第一关 -->
+  <div id="screen1" class="screen hidden">
+    <h2>🧩 像素拼图</h2>
+    <p class="instruction">拖动拼图块到正确位置</p>
+    <div class="puzzle-drag-area" id="puzzleDragArea"></div>
+    <button class="btn" id="shuffleBtn">🔀 打乱</button>
+    <p id="puzzleMsg" class="feedback-text"></p>
+  </div>
+
+  <!-- 第二关 -->
+  <div id="screen2" class="screen hidden">
+    <h2>📅 时光问答</h2>
+    <p style="margin-bottom:12px; font-size: clamp(14px, 3.5vw, 17px); text-align:center;">上一张照片发生在哪一年？</p>
+    <button class="btn option-btn" data-answer="A">A 2020年</button>
+    <button class="btn option-btn" data-answer="B">B 2021年</button>
+    <button class="btn option-btn" data-answer="C">C 2022年</button>
+    <p id="quizFeedback" class="feedback-text"></p>
+  </div>
+
+  <!-- 第三关 -->
+  <div id="screen3" class="screen hidden">
+    <h2>🎁 心意问答</h2>
+    <p style="font-size: clamp(14px, 3.5vw, 17px); text-align:center;">你收到过最喜欢的生日礼物是什么？</p>
+    <textarea id="giftAnswer" placeholder="在这里输入..." rows="3"></textarea>
+    <button class="btn" id="submitGift">✨ 提交答案</button>
+    <p id="giftFeedback" class="feedback-text"></p>
+  </div>
+
+  <!-- 第四关 -->
+  <div id="screen4" class="screen hidden">
+    <h2>🎰 幸运信封</h2>
+    <p style="font-size: clamp(14px, 3.5vw, 17px); text-align:center;">摇中三个✉️即可过关</p>
+    <div class="slot-machine">
+      <div class="slot" id="slot1">🎂</div>
+      <div class="slot" id="slot2">🎂</div>
+      <div class="slot" id="slot3">🎂</div>
+    </div>
+    <button class="btn" id="spinBtn">🎲 转动老虎机</button>
+    <p id="slotMsg" class="feedback-text"></p>
+  </div>
+
+  <!-- 第五关 -->
+  <div id="screen5" class="screen hidden">
+    <h2>💌 殷先生亲启</h2>
+    <div class="envelope-letter">
+      亲爱的殷先生：<br><br>
+      &nbsp;&nbsp;时光飞逝，你已度过30岁的第一个年头，这一年我们好像更从容了些。<br>
+      &nbsp;&nbsp;大概是源自陪伴小葵健康快乐成长的幸福，或是忙里偷闲偷跑出去找寻二人世界的快乐，又或是彼此没有被生活磨平棱角的爱意。是那些没有被奶粉和尿布覆盖的，只属于你我的浪漫。<br>
+      &nbsp;&nbsp;谢谢你，在这一年里，没有让"父亲"这个角色淹没"爱人"的身份。<br>
+      &nbsp;&nbsp;前路漫漫，亦灿灿。美好的事物一定会在新的一岁如约而至。<br>
+      &nbsp;&nbsp;祝我的殷先生，生日快乐！<br><br>
+      <span class="signature">你温柔善良美丽大方的老婆</span>
+    </div>
+    <button class="btn" id="revealFinal" style="margin-top: clamp(10px, 2.5vw, 16px);">🕯️ 点亮祝福</button>
+  </div>
+
+  <!-- 最终庆祝 -->
+  <div id="screenFinal" class="screen hidden" style="background:transparent; border:none; box-shadow:none; min-height:auto; padding:0;">
+    <div class="final-celebration">
+      <canvas id="celebrationCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- 导航 -->
+  <div id="navButtons" class="hidden">
+    <button class="btn" id="prevBtn" disabled>◀ 上一关</button>
+    <span id="pageIndicator">1/5</span>
+    <button class="btn" id="nextBtn">下一关 ▶</button>
+  </div>
+
+  <div id="finalNavButtons" class="hidden">
+    <button class="btn" id="homeBtn" style="font-size: clamp(14px, 3.5vw, 18px);">🏠 返回首页</button>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const symbols = ['🎂', '🎁', '🎈', '✉️'];
+    const imageUrl = 'photo.jpg';
+
+    let currentScreen = 0;
+    let tiles = [0,1,2,3,4,5,6,7,8];
+    let tileElements = [];
+    let dragState = null;
+    let puzzleCompleted = false;
+    let quizCompleted = false;
+    let giftCompleted = false;
+    let slotCompleted = false;
+    let animationId = null;
+    let audioCtx = null;
+    let musicInterval = null;
+
+    function getTileSize() {
+      const area = document.getElementById('puzzleDragArea');
+      if (!area) return 100;
+      return area.clientWidth / 3;
+    }
+
+    function initPuzzle() {
+      tiles = [0,1,2,3,4,5,6,7,8];
+      puzzleCompleted = false;
+      const msg = document.getElementById('puzzleMsg'); if (msg) msg.textContent = '';
+      renderDragPuzzle();
+    }
+
+    function renderDragPuzzle() {
+      const area = document.getElementById('puzzleDragArea');
+      if (!area) return;
+      area.innerHTML = ''; tileElements = [];
+      const ts = getTileSize();
+      for (let pos = 0; pos < 9; pos++) {
+        const val = tiles[pos];
+        const div = document.createElement('div');
+        div.className = 'puzzle-tile';
+        div.dataset.position = pos; div.dataset.value = val;
+        div.style.left = (pos % 3) * ts + 'px';
+        div.style.top = Math.floor(pos/3) * ts + 'px';
+        div.style.width = ts + 'px'; div.style.height = ts + 'px';
+        if (val === 8) { div.classList.add('empty'); }
+        else {
+          const row = Math.floor(val/3), col = val % 3;
+          div.style.backgroundImage = `url('${imageUrl}')`;
+          div.style.backgroundSize = `${ts*3}px ${ts*3}px`;
+          div.style.backgroundPosition = `-${col*ts}px -${row*ts}px`;
+        }
+        div.addEventListener('pointerdown', onDragStart);
+        div.addEventListener('pointermove', onDragMove);
+        div.addEventListener('pointerup', onDragEnd);
+        div.addEventListener('pointercancel', onDragEnd);
+        div.addEventListener('pointerleave', onDragEnd);
+        area.appendChild(div); tileElements[pos] = div;
+      }
+      updateCorrectHighlights();
+    }
+
+    function updateCorrectHighlights() {
+      tileElements.forEach((el, pos) => {
+        if (!el) return;
+        if (parseInt(el.dataset.value) === pos && el.dataset.value !== '8') el.classList.add('correct');
+        else el.classList.remove('correct');
+      });
+    }
+
+    function onDragStart(e) {
+      if (puzzleCompleted) return;
+      const tile = e.currentTarget;
+      if (tile.classList.contains('empty')) return;
+      e.preventDefault(); tile.setPointerCapture(e.pointerId);
+      const rect = tile.getBoundingClientRect();
+      dragState = { element: tile, position: parseInt(tile.dataset.position), offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top, pointerId: e.pointerId };
+      tile.classList.add('dragging');
+    }
+
+    function onDragMove(e) {
+      if (!dragState || e.pointerId !== dragState.pointerId) return;
+      e.preventDefault();
+      const area = document.getElementById('puzzleDragArea');
+      const areaRect = area.getBoundingClientRect();
+      const ts = getTileSize();
+      let left = e.clientX - areaRect.left - dragState.offsetX;
+      let top = e.clientY - areaRect.top - dragState.offsetY;
+      left = Math.max(0, Math.min(areaRect.width - ts, left));
+      top = Math.max(0, Math.min(areaRect.height - ts, top));
+      dragState.element.style.left = left + 'px';
+      dragState.element.style.top = top + 'px';
+    }
+
+    function onDragEnd(e) {
+      if (!dragState) return;
+      const element = dragState.element;
+      element.classList.remove('dragging');
+      const area = document.getElementById('puzzleDragArea');
+      const areaRect = area.getBoundingClientRect();
+      const ts = getTileSize();
+      const centerX = e.clientX - areaRect.left - dragState.offsetX + ts/2;
+      const centerY = e.clientY - areaRect.top - dragState.offsetY + ts/2;
+      const col = Math.floor(centerX / ts), row = Math.floor(centerY / ts);
+      const targetPos = Math.max(0, Math.min(8, row * 3 + col));
+      const fromPos = dragState.position;
+      try { element.releasePointerCapture(dragState.pointerId); } catch(e) {}
+      if (fromPos !== targetPos) { [tiles[fromPos], tiles[targetPos]] = [tiles[targetPos], tiles[fromPos]]; checkPuzzleComplete(); }
+      dragState = null; renderDragPuzzle();
+    }
+
+    function checkPuzzleComplete() {
+      if (tiles.every((v,i) => v===i)) { puzzleCompleted = true; const msg = document.getElementById('puzzleMsg'); if (msg) msg.textContent = '✅ 拼图成功！'; }
+    }
+
+    function shufflePuzzle() {
+      if (puzzleCompleted) puzzleCompleted = false;
+      do { for (let i=8; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [tiles[i], tiles[j]] = [tiles[j], tiles[i]]; } }
+      while (tiles.every((v,i)=>v===i) || !isSolvable());
+      renderDragPuzzle(); const msg = document.getElementById('puzzleMsg'); if (msg) msg.textContent = '';
+    }
+
+    function isSolvable() {
+      let inv = 0;
+      for (let i=0;i<9;i++) for (let j=i+1;j<9;j++) if (tiles[i]!==8 && tiles[j]!==8 && tiles[i]>tiles[j]) inv++;
+      return inv%2===0;
+    }
+
+    function stopAllAnimations() {
+      if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
+      if (musicInterval) { clearInterval(musicInterval); musicInterval = null; }
+      if (audioCtx && audioCtx.state === 'running') { audioCtx.close().catch(()=>{}); audioCtx = null; }
+    }
+
+    function showScreen(num) {
+      stopAllAnimations();
+      ['screenCover','screen1','screen2','screen3','screen4','screen5'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.add('hidden'); });
+      const finalScreen = document.getElementById('screenFinal'); if (finalScreen) finalScreen.classList.add('hidden');
+      const nav = document.getElementById('navButtons'); const finalNav = document.getElementById('finalNavButtons');
+      if (nav) nav.classList.add('hidden'); if (finalNav) finalNav.classList.add('hidden');
+      if (num === 0) { document.getElementById('screenCover').classList.remove('hidden'); }
+      else if (num >= 1 && num <= 5) {
+        document.getElementById('screen'+num).classList.remove('hidden');
+        if (nav) nav.classList.remove('hidden');
+        const ind = document.getElementById('pageIndicator'); if (ind) ind.textContent = num+'/5';
+        if (num===1) renderDragPuzzle();
+      } else if (num === 6) {
+        if (finalScreen) finalScreen.classList.remove('hidden');
+        if (finalNav) finalNav.classList.remove('hidden');
+        const ind = document.getElementById('pageIndicator'); if (ind) ind.textContent = '🎂';
+        startCelebration();
+      }
+      updateNav(num); currentScreen = num;
+    }
+
+    function updateNav(n) {
+      const prev = document.getElementById('prevBtn'), next = document.getElementById('nextBtn');
+      if (!prev || !next) return;
+      if (n === 0 || n === 6) { prev.disabled = (n===0); next.disabled = (n===6); }
+      else { prev.disabled = (n===1); next.disabled = false; }
+    }
+
+    function goHome() {
+      stopAllAnimations(); puzzleCompleted = quizCompleted = giftCompleted = slotCompleted = false;
+      const ga = document.getElementById('giftAnswer'); if (ga) ga.value = '';
+      const qf = document.getElementById('quizFeedback'); if (qf) qf.textContent = '';
+      const gf = document.getElementById('giftFeedback'); if (gf) gf.textContent = '';
+      const sm = document.getElementById('slotMsg'); if (sm) sm.textContent = '';
+      initPuzzle(); shufflePuzzle(); showScreen(0);
+    }
+
+    function goNext() {
+      if (currentScreen===1 && !puzzleCompleted) { alert('请先完成拼图！'); return; }
+      if (currentScreen===2 && !quizCompleted) { alert('请回答正确！'); return; }
+      if (currentScreen===3 && !giftCompleted) { alert('请提交答案'); return; }
+      if (currentScreen===4 && !slotCompleted) { alert('摇中三个信封才行'); return; }
+      if (currentScreen===5) showScreen(6); else if (currentScreen<5) showScreen(currentScreen+1);
+    }
+
+    function goPrev() { if (currentScreen===6) showScreen(5); else if (currentScreen>1) showScreen(currentScreen-1); }
+
+    function spinSlots() {
+      if (slotCompleted) return;
+      const s1=document.getElementById('slot1'), s2=document.getElementById('slot2'), s3=document.getElementById('slot3');
+      const btn = document.getElementById('spinBtn'); if (!s1||!s2||!s3||!btn) return;
+      btn.disabled = true; let count=0;
+      const interval = setInterval(() => {
+        s1.textContent = symbols[Math.floor(Math.random()*4)];
+        s2.textContent = symbols[Math.floor(Math.random()*4)];
+        s3.textContent = symbols[Math.floor(Math.random()*4)];
+        if (++count>12) { clearInterval(interval);
+          if (Math.random()<0.25) { s1.textContent = s2.textContent = s3.textContent = '✉️'; slotCompleted = true; const msg = document.getElementById('slotMsg'); if (msg) msg.textContent = '🎉 恭喜！获得信封！'; }
+          else { if (s1.textContent==='✉️'&&s2.textContent==='✉️'&&s3.textContent==='✉️') s2.textContent='🎂'; const msg = document.getElementById('slotMsg'); if (msg) msg.textContent = '再试一次～'; }
+          btn.disabled = false;
+        }
+      }, 100);
+    }
+
+    function playBirthdayMusic() {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const melody = [
+          {freq:262,dur:0.4},{freq:262,dur:0.4},{freq:294,dur:0.8},{freq:262,dur:0.8},{freq:349,dur:0.8},{freq:330,dur:1.6},
+          {freq:262,dur:0.4},{freq:262,dur:0.4},{freq:294,dur:0.8},{freq:262,dur:0.8},{freq:392,dur:0.8},{freq:349,dur:1.6},
+          {freq:262,dur:0.4},{freq:262,dur:0.4},{freq:523,dur:0.8},{freq:440,dur:0.8},{freq:349,dur:0.8},{freq:330,dur:0.8},{freq:294,dur:1.6},
+          {freq:466,dur:0.4},{freq:466,dur:0.4},{freq:440,dur:0.8},{freq:349,dur:0.8},{freq:392,dur:0.8},{freq:349,dur:1.6}
+        ];
+        let time = audioCtx.currentTime;
+        melody.forEach(note => { const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='sine'; o.frequency.value=note.freq; g.gain.setValueAtTime(0.12,time); g.gain.exponentialRampToValueAtTime(0.001,time+note.dur); o.connect(g); g.connect(audioCtx.destination); o.start(time); o.stop(time+note.dur); time+=note.dur; });
+        const total = melody.reduce((s,n)=>s+n.dur,0);
+        musicInterval = setInterval(() => { if (audioCtx && audioCtx.state==='running') { let t=audioCtx.currentTime; melody.forEach(note=>{ const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.type='sine'; o.frequency.value=note.freq; g.gain.setValueAtTime(0.12,t); g.gain.exponentialRampToValueAtTime(0.001,t+note.dur); o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+note.dur); t+=note.dur; }); } }, total*1000);
+      } catch(e) {}
+    }
+
+    // ============ 🎂 emoji风格草莓蛋糕绘制函数 ============
+    function drawStrawberryCake(ctx, cx, baseY, w, h, ts) {
+      const breathe = Math.sin(ts * 0.003) * 2;
+
+      // --- 蛋糕主体：浅棕色蛋糕坯 ---
+      // 下层
+      ctx.fillStyle = '#e8c98b';
+      ctx.beginPath(); ctx.ellipse(cx, baseY, w*0.26, h*0.05, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#d4b070';
+      ctx.fillRect(cx-w*0.26, baseY-h*0.01, w*0.52, h*0.03);
+      
+      // 上层
+      const midY = baseY - h*0.06;
+      ctx.fillStyle = '#e8c98b';
+      ctx.beginPath(); ctx.ellipse(cx, midY, w*0.20, h*0.04, 0, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#d4b070';
+      ctx.fillRect(cx-w*0.20, midY-h*0.01, w*0.40, h*0.025);
+
+      // --- 白色奶油（波浪边） ---
+      // 下层奶油
+      ctx.fillStyle = '#fffef5';
+      ctx.beginPath(); ctx.ellipse(cx, baseY-h*0.025, w*0.28, h*0.04, 0, 0, Math.PI*2); ctx.fill();
+      // 奶油波浪边
+      ctx.fillStyle = '#fffff0';
+      for (let i=-5;i<=5;i++) {
+        ctx.beginPath();
+        ctx.arc(cx+i*w*0.048, baseY-h*0.035, w*0.025, 0, Math.PI*2);
+        ctx.fill();
+      }
+      
+      // 上层奶油
+      ctx.fillStyle = '#fffef5';
+      ctx.beginPath(); ctx.ellipse(cx, midY-h*0.02, w*0.22, h*0.035, 0, 0, Math.PI*2); ctx.fill();
+      for (let i=-4;i<=4;i++) {
+        ctx.beginPath();
+        ctx.arc(cx+i*w*0.048, midY-h*0.03, w*0.022, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // --- 粉色裱花 ---
+      ctx.fillStyle = '#ffb3c6';
+      // 下层裱花
+      for (let i=-4;i<=4;i++) {
+        ctx.beginPath();
+        ctx.arc(cx+i*w*0.055, baseY-h*0.05, w*0.014, 0, Math.PI*2);
+        ctx.fill();
+      }
+      // 上层裱花
+      for (let i=-3;i<=3;i++) {
+        ctx.beginPath();
+        ctx.arc(cx+i*w*0.055, midY-h*0.04, w*0.012, 0, Math.PI*2);
+        ctx.fill();
+      }
+
+      // --- 红草莓 ---
+      function drawStrawberry(sx, sy, sz) {
+        ctx.fillStyle = '#e63946';
+        ctx.beginPath();
+        ctx.moveTo(sx, sy-sz);
+        ctx.bezierCurveTo(sx+sz*0.8, sy-sz*0.5, sx+sz*0.7, sy+sz*0.6, sx, sy+sz);
+        ctx.bezierCurveTo(sx-sz*0.7, sy+sz*0.6, sx-sz*0.8, sy-sz*0.5, sx, sy-sz);
+        ctx.fill();
+        // 草莓籽
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(sx-sz*0.2, sy, sz*0.08, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx+sz*0.25, sy-sz*0.2, sz*0.07, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx, sy+sz*0.3, sz*0.07, 0, Math.PI*2); ctx.fill();
+        // 绿叶
+        ctx.fillStyle = '#4caf50';
+        ctx.beginPath(); ctx.ellipse(sx-sz*0.15, sy-sz*0.85, sz*0.2, sz*0.1, -0.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(sx+sz*0.15, sy-sz*0.85, sz*0.2, sz*0.1, 0.5, 0, Math.PI*2); ctx.fill();
+      }
+      
+      drawStrawberry(cx-w*0.12, baseY-h*0.07, w*0.035);
+      drawStrawberry(cx+w*0.14, baseY-h*0.07, w*0.035);
+      drawStrawberry(cx+0.02, midY-h*0.055, w*0.03);
+
+      // --- 蜡烛 ---
+      const candleX = cx;
+      const candleBaseY = midY - h*0.065;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(candleX-3, candleBaseY, 6, h*0.08);
+      // 蜡烛条纹
+      ctx.fillStyle = '#ffb3c6';
+      ctx.fillRect(candleX-3, candleBaseY+4, 6, 2);
+      ctx.fillRect(candleX-3, candleBaseY+14, 6, 2);
+      
+      // 火焰
+      const flameY = candleBaseY - 4 + breathe;
+      const glow = ctx.createRadialGradient(candleX, flameY-2, 3, candleX, flameY-2, w*0.1);
+      glow.addColorStop(0, 'rgba(255,220,80,0.5)'); glow.addColorStop(1, 'rgba(255,150,20,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(candleX, flameY-2, w*0.1, 0, Math.PI*2); ctx.fill();
+      
+      ctx.fillStyle = '#ff7700';
+      ctx.beginPath();
+      ctx.moveTo(candleX-5, flameY+5);
+      ctx.quadraticCurveTo(candleX-2+Math.sin(ts*0.025)*2, flameY-7, candleX, flameY);
+      ctx.quadraticCurveTo(candleX+2-Math.sin(ts*0.025)*2, flameY-7, candleX+5, flameY+5);
+      ctx.fill();
+      ctx.fillStyle = '#ffcc00';
+      ctx.beginPath();
+      ctx.moveTo(candleX-2.5, flameY+3);
+      ctx.quadraticCurveTo(candleX-1+Math.sin(ts*0.03), flameY-3, candleX, flameY);
+      ctx.quadraticCurveTo(candleX+1-Math.sin(ts*0.03), flameY-3, candleX+2.5, flameY+3);
+      ctx.fill();
+      ctx.fillStyle = '#fffbe6';
+      ctx.beginPath(); ctx.arc(candleX, flameY-1, 2, 0, Math.PI*2); ctx.fill();
+    }
+
+    function startCelebration() {
+      const canvas = document.getElementById('celebrationCanvas');
+      if (!canvas) return;
+      const container = canvas.parentElement;
+      const w = Math.min(container.clientWidth - 8, 400);
+      const h = w * 1.5;
+      canvas.width = w; canvas.height = h;
+      canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+      const ctx = canvas.getContext('2d');
+      let fireworks = [];
+      let confetti = [];
+
+      for (let i=0;i<30;i++) {
+        confetti.push({
+          x:Math.random()*w, y:Math.random()*h,
+          vx:(Math.random()-0.5)*1.2, vy:0.5+Math.random()*2,
+          rotation:Math.random()*360, rotSpeed:(Math.random()-0.5)*5,
+          color:['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff922b','#ff6eb4'][Math.floor(Math.random()*6)],
+          size:3+Math.random()*6
+        });
+      }
+
+      function spawnFirework() {
+        const x = w*0.2+Math.random()*w*0.6;
+        const y = h*0.08+Math.random()*h*0.2;
+        const count = 25+Math.floor(Math.random()*20);
+        const color = `hsl(${Math.random()*60+20},90%,65%)`;
+        for (let i=0;i<count;i++) {
+          const angle = (Math.PI*2*i)/count;
+          const speed = 1+Math.random()*2.5;
+          fireworks.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:1,decay:0.008+Math.random()*0.018,color});
+        }
+      }
+
+      function drawFrame(ts) {
+        ctx.clearRect(0,0,w,h);
+        for (let i=0;i<50;i++) {
+          ctx.fillStyle=`rgba(255,255,200,${0.25+Math.sin(ts*0.002+i)*0.25})`;
+          ctx.beginPath(); ctx.arc((i*97)%w,(i*73)%(h*0.4),0.7,0,Math.PI*2); ctx.fill();
+        }
+        if (Math.random()<0.07 && fireworks.length<120) spawnFirework();
+        fireworks = fireworks.filter(f=>{
+          f.x+=f.vx; f.y+=f.vy; f.vy+=0.02; f.life-=f.decay;
+          if (f.life<=0) return false;
+          ctx.fillStyle = f.color.replace('65%',`${65*f.life}%`);
+          ctx.globalAlpha = f.life;
+          ctx.beginPath(); ctx.arc(f.x,f.y,1.8,0,Math.PI*2); ctx.fill();
+          return true;
+        });
+        ctx.globalAlpha=1;
+
+        // 绘制草莓蛋糕
+        drawStrawberryCake(ctx, w/2, h*0.58, w, h, ts);
+
+        confetti.forEach(c=>{
+          c.x+=c.vx; c.y+=c.vy; c.rotation+=c.rotSpeed;
+          if (c.y>h+10){c.y=-10;c.x=Math.random()*w;}
+          ctx.save(); ctx.translate(c.x,c.y); ctx.rotate(c.rotation*Math.PI/180);
+          ctx.fillStyle=c.color; ctx.fillRect(-c.size/2,-c.size/4,c.size,c.size/2);
+          ctx.restore();
+        });
+
+        function drawStar(sx,sy,or,ir){
+          let rot=Math.PI/2*3, step=Math.PI/5;
+          ctx.beginPath();
+          for (let i=0;i<5;i++){ ctx.lineTo(sx+Math.cos(rot)*or,sy+Math.sin(rot)*or); rot+=step; ctx.lineTo(sx+Math.cos(rot)*ir,sy+Math.sin(rot)*ir); rot+=step; }
+          ctx.closePath(); ctx.fillStyle='#e63946'; ctx.fill();
+        }
+        drawStar(w*0.15,h*0.73,9,5); drawStar(w*0.82,h*0.75,9,5);
+        function drawHeart(hx,hy,sz){
+          ctx.beginPath(); ctx.moveTo(hx,hy+sz*0.3);
+          ctx.bezierCurveTo(hx,hy,hx-sz,hy,hx-sz,hy+sz*0.3); ctx.bezierCurveTo(hx-sz,hy+sz*0.8,hx,hy+sz*1.2,hx,hy+sz*1.4);
+          ctx.bezierCurveTo(hx,hy+sz*1.2,hx+sz,hy+sz*0.8,hx+sz,hy+sz*0.3); ctx.bezierCurveTo(hx+sz,hy,hx,hy,hx,hy+sz*0.3);
+          ctx.fillStyle='#ff8da1'; ctx.fill();
+        }
+        drawHeart(w*0.88,h*0.7,5.5); drawHeart(w*0.08,h*0.78,4.5);
+
+        ctx.fillStyle='#f7e98e'; ctx.font=`italic ${w*0.075}px "Brush Script MT",cursive`; ctx.textAlign='center';
+        ctx.fillText('Happy Birthday',w/2,h*0.23);
+        ctx.fillStyle='#f0f5ff'; ctx.font=`${w*0.045}px "ZCOOL KuaiLe","Ma Shan Zheng","Liu Jian Mao Cao","Long Cang","KaiTi","楷体",cursive,serif`;
+        const textBaseY = h*0.88;
+        ctx.fillText('美好的事物', w/2, textBaseY);
+        ctx.fillText('一定会在新的一岁', w/2, textBaseY + h*0.04);
+        ctx.fillText('如约而至', w/2, textBaseY + h*0.08);
+
+        animationId=requestAnimationFrame(drawFrame);
+      }
+      animationId=requestAnimationFrame(drawFrame);
+      playBirthdayMusic();
+    }
+
+    document.getElementById('enterBtn').addEventListener('click', ()=>showScreen(1));
+    document.getElementById('shuffleBtn').addEventListener('click', shufflePuzzle);
+    document.getElementById('spinBtn').addEventListener('click', spinSlots);
+    document.getElementById('nextBtn').addEventListener('click', goNext);
+    document.getElementById('prevBtn').addEventListener('click', goPrev);
+    document.getElementById('revealFinal').addEventListener('click', ()=>showScreen(6));
+    document.getElementById('homeBtn').addEventListener('click', goHome);
+    document.querySelectorAll('.option-btn').forEach(b=>b.addEventListener('click',function(){
+      if (quizCompleted) return;
+      if (this.dataset.answer==='A'){ quizCompleted=true; document.getElementById('quizFeedback').textContent='✅ 正确！2020年'; }
+      else document.getElementById('quizFeedback').textContent='❌ 再想想～';
+    }));
+    document.getElementById('submitGift').addEventListener('click',()=>{
+      if (document.getElementById('giftAnswer').value.trim()==='') return;
+      giftCompleted=true; document.getElementById('giftFeedback').textContent='💖 谢谢分享！';
+    });
+    let resizeTimeout;
+    window.addEventListener('resize', ()=>{
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(()=>{ if (currentScreen===1) renderDragPuzzle(); if (currentScreen===6) startCelebration(); }, 200);
+    });
+    initPuzzle(); shufflePuzzle(); showScreen(0);
+  })();
+</script>
+</body>
+</html>
